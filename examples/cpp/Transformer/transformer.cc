@@ -190,7 +190,7 @@ DataLoader::DataLoader(FFModel& ff,
   Runtime* runtime = ff.config.lg_hlr;
   num_samples = 0;
   log_app.print("Use random dataset...");
-  num_samples = ff.config.batchSize * ff.config.workersPerNode * ff.config.numNodes;
+  num_samples = 50 * ff.config.batchSize * ff.config.workersPerNode * ff.config.numNodes;
   log_app.print("Number of random samples = %d\n", num_samples);
   {
     batch_input = _input;
