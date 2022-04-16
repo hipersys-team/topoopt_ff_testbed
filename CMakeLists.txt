@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(FlexFlow)
 
-include(ExternalProject) 
+include(ExternalProject)
 
 # Set policy CMP0074 to eliminate cmake warnings
 cmake_policy(SET CMP0074 NEW)
@@ -31,13 +31,13 @@ option(FF_BUILD_FROM_PYPI "Build from pypi" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
 
 # option for using Python
-option(FF_USE_PYTHON "Enable Python" ON)  
+option(FF_USE_PYTHON "Enable Python" ON)
 
 # option for using Python
 option(FF_USE_GASNET "Run FlexFlow with GASNet" OFF)
 set(FF_GASNET_CONDUITS aries udp mpi ibv ucx)
 set(FF_GASNET_CONDUIT "mpi" CACHE STRING "Select Gasnet conduit ${FF_GASNET_CONDUITS}")
-set_property(CACHE FF_GASNET_CONDUIT PROPERTY STRINGS ${FF_GASNET_CONDUITS})  
+set_property(CACHE FF_GASNET_CONDUIT PROPERTY STRINGS ${FF_GASNET_CONDUITS})
 
 # option for cuda arch
 set(FF_CUDA_ARCH "" CACHE STRING "Target CUDA Arch")
@@ -68,7 +68,7 @@ list(APPEND CC_FLAGS
 
 list(APPEND NVCC_FLAGS
   -std=c++11)
-	
+
 add_compile_options(${CC_FLAGS})
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${NVCC_FLAGS})
 link_libraries(${LD_FLAGS})
@@ -78,7 +78,7 @@ include(zlib)
 
 # CUDA
 include(cuda)
- 
+
 # CUDNN
 include(cudnn)
 
@@ -119,11 +119,11 @@ if(FF_USE_AVX2)
     -DFF_USE_AVX2
     -mavx2)
 endif()
-  
+
 list(APPEND FF_NVCC_FLAGS
   -Wno-deprecated-gpu-targets
   -DMAX_TENSOR_DIM=${FF_MAX_DIM})
-  
+
 list(APPEND FF_LD_FLAGS
   -lrt
   -ldl
@@ -138,21 +138,21 @@ list(APPEND FLEXFLOW_INCLUDE_DIRS
   ${FLEXFLOW_ROOT}/include
   ${FLEXFLOW_ROOT})
 
-file(GLOB_RECURSE FLEXFLOW_HDR 
-  LIST_DIRECTORIES False 
+file(GLOB_RECURSE FLEXFLOW_HDR
+  LIST_DIRECTORIES False
   ${FLEXFLOW_ROOT}/include/*.h)
 
-file(GLOB_RECURSE FLEXFLOW_SRC 
-  LIST_DIRECTORIES False 
+file(GLOB_RECURSE FLEXFLOW_SRC
+  LIST_DIRECTORIES False
   ${FLEXFLOW_ROOT}/src/*.cc)
 list(REMOVE_ITEM FLEXFLOW_SRC "${FLEXFLOW_ROOT}/src/runtime/cpp_driver.cc")
 
-file(GLOB_RECURSE FLEXFLOW_GPU_SRC 
-  LIST_DIRECTORIES False 
+file(GLOB_RECURSE FLEXFLOW_GPU_SRC
+  LIST_DIRECTORIES False
   ${FLEXFLOW_ROOT}/src/*.cu)
 
 set(FLEXFLOW_CPP_DRV_SRC
-  ${FLEXFLOW_ROOT}/src/runtime/cpp_driver.cc)  
+  ${FLEXFLOW_ROOT}/src/runtime/cpp_driver.cc)
 
 #message("FLEXFLOW_INCLUDE_DIRS: ${FLEXFLOW_INCLUDE_DIRS}")
 
@@ -206,7 +206,7 @@ if(FF_BUILD_INCEPTION OR FF_BUILD_ALL_EXAMPLES)
 endif()
 
 #TODO: Once functional add to BUILD_ALL_EXAMPLES
-if(FF_BUILD_CANDLE_UNO)
+if(FF_BUILD_CANDLE_UNO OR FF_BUILD_ALL_EXAMPLES)
   add_subdirectory(examples/cpp/candle_uno)
 endif()
 
@@ -222,6 +222,10 @@ endif()
 
 if(FF_BUILD_TRANSFORMER OR FF_BUILD_ALL_EXAMPLES)
   add_subdirectory(examples/cpp/Transformer)
+endif()
+
+if(FF_BUILD_ALL_EXAMPLES)
+  add_subdirectory(examples/cpp/vgg16)
 endif()
 
 # installation

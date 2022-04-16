@@ -13,45 +13,22 @@
  * limitations under the License.
  */
 
-#include "resnet.h"
+#include "vgg16.h"
 #include <sstream>
 #include <fstream>
 #include <string>
 using namespace Legion;
 
-LegionRuntime::Logger::Category log_app("ResNet");
+LegionRuntime::Logger::Category log_app("VGG");
 
-void parse_input_args(char **argv, int argc, ResNetConfig& config)
+void parse_input_args(char **argv, int argc, VGGConfig& config)
 {
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--dataset")) {
-      config.dataset_path = std::string(argv[++i]);
+      std::strcpy(config.dataset_path, argv[++i]);
       continue;
     }
   }
-}
-
-Tensor BottleneckBlock(FFModel& ff,
-                       Tensor input,
-                       int out_channels,
-                       int stride)
-{
-  Tensor t = ff.conv2d(input, out_channels, 1, 1, 1, 1, 0, 0, AC_MODE_NONE);
-  //t = ff.batch_norm(t);
-  
-  t = ff.conv2d(t, out_channels, 3, 3, stride, stride, 1, 1, AC_MODE_NONE);
-  //t = ff.batch_norm(t);
-  
-  t = ff.conv2d(t, 4*out_channels, 1, 1, 1, 1, 0, 0);
-  //t = ff.batch_norm(t, false);
-  
-  if ((stride > 1) || (input.adim[2] != out_channels * 4)) {
-    printf("input.adim = %d out_channels*4 = %d\n", input.adim[2], out_channels*4);
-    input = ff.conv2d(input, 4*out_channels, 1, 1, stride, stride, 0, 0, AC_MODE_NONE);
-    //input = ff.batch_norm(input, false);
-  }
-  t = ff.add(input, t);
-  return ff.relu(t);
 }
 
 void top_level_task(const Task* task,
@@ -59,12 +36,12 @@ void top_level_task(const Task* task,
                     Context ctx, Runtime* runtime)
 {
   FFConfig ffConfig;
-  ResNetConfig resnetConfig;
+  VGGConfig vggConfig;
   {
     const InputArgs &command_args = HighLevelRuntime::get_input_args();
     char **argv = command_args.argv;
     int argc = command_args.argc;
-    parse_input_args(argv, argc, resnetConfig);
+    parse_input_args(argv, argc, vggConfig);
     log_app.print("batchSize(%d) workersPerNodes(%d) numNodes(%d)",
         ffConfig.batchSize, ffConfig.workersPerNode, ffConfig.numNodes);
   }
@@ -75,34 +52,35 @@ void top_level_task(const Task* task,
     const int dims[] = {ffConfig.batchSize, 3, 229, 229};
     input = ff.create_tensor<4>(dims, DT_FLOAT);
   }
-  // Tensor label;
-  // {
-  //   const int dims[] = {ffConfig.batchSize, 1};
-  //   label = ff.create_tensor<2>(dims, DT_INT32);
-  // }
+  //Tensor label;
+  //{
+  //  const int dims[] = {ffConfig.batchSize, 1};
+  //  label = ff.create_tensor<2>(dims, DT_INT32);
+  //}
   // Add layers
-  Tensor t = input;
-  t = ff.conv2d(input, 64, 7, 7, 2, 2, 3, 3);
-  //t = ff.batch_norm(t);
-  t = ff.pool2d(t, 3, 3, 2, 2, 1, 1);
-
-  for (int i = 0; i < 3; i++)
-    t = BottleneckBlock(ff, t, 64, 1);
-  for (int i = 0; i < 4; i++) {
-    int stride = (i == 0) ? 2 : 1;
-    t = BottleneckBlock(ff, t, 128, stride);
-  }
-  for (int i = 0; i < 6; i++) {
-    int stride = (i==0) ? 2 : 1;
-    t = BottleneckBlock(ff, t, 256, stride);
-  }
-  for (int i = 0; i < 3; i++) {
-    int stride = (i==0) ? 2 : 1;
-    t = BottleneckBlock(ff, t, 512, stride);
-  }
-  t = ff.pool2d(t, 7, 7, 1, 1, 0, 0, POOL_AVG);
+  Tensor t = input, ts[2];
+  t = ff.conv2d(input, 64, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 64, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.pool2d(t, 3, 3, 2, 2, 0, 0);
+  t = ff.conv2d(t, 128, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 128, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.pool2d(t, 3, 3, 2, 2, 0, 0);
+  t = ff.conv2d(t, 256, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 256, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 256, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.pool2d(t, 3, 3, 2, 2, 0, 0);
+  t = ff.conv2d(t, 512, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 512, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 512, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.pool2d(t, 3, 3, 2, 2, 0, 0);
+  t = ff.conv2d(t, 512, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 512, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.conv2d(t, 512, 3, 3, 1, 1, 2, 2, AC_MODE_RELU);
+  t = ff.pool2d(t, 3, 3, 2, 2, 0, 0);
   t = ff.flat(t);
-  t = ff.dense(t, 10);
+  t = ff.dense(t, 4096, AC_MODE_RELU/*relu*/);
+  t = ff.dense(t, 4096, AC_MODE_RELU/*relu*/);
+  t = ff.dense(t, 1000);
   t = ff.softmax(t);
   Optimizer* optimizer = new SGDOptimizer(&ff, 0.001f);
   std::vector<MetricsType> metrics;
@@ -110,7 +88,7 @@ void top_level_task(const Task* task,
   metrics.push_back(METRICS_SPARSE_CATEGORICAL_CROSSENTROPY);
   ff.compile(optimizer, LOSS_SPARSE_CATEGORICAL_CROSSENTROPY, metrics);
   // Data Loader
-  DataLoader data_loader(ff, resnetConfig, input, ff.label_tensor);
+  DataLoader data_loader(ff, &vggConfig, input, ff.label_tensor);
   ff.init_layers();
   //Start timer
   {
@@ -126,7 +104,7 @@ void top_level_task(const Task* task,
     int iterations = data_loader.num_samples / ffConfig.batchSize;
 
     for (int iter = 0; iter < iterations; iter++) {
-      if (resnetConfig.dataset_path.length() == 0) {
+      if (std::strlen(vggConfig.dataset_path) == 0) {
         // Only load data once for random input
         if (iter == 0 && epoch == 0)
           data_loader.next_batch(ff);
@@ -167,21 +145,21 @@ size_t get_file_size(const std::string& filename)
 }
 
 DataLoader::DataLoader(FFModel& ff,
-                       const ResNetConfig& resnet,
+                       const VGGConfig* vgg,
                        Tensor input, Tensor label)
 {
   Context ctx = ff.config.lg_ctx;
   Runtime* runtime = ff.config.lg_hlr;
   num_samples = 0;
-  if (resnet.dataset_path == "") {
+  if (std::strlen(vgg->dataset_path) == 0) {
     log_app.print("Use random dataset...");
-    num_samples = 100 * ff.config.batchSize;
+    num_samples = 1024 * ff.config.workersPerNode * ff.config.numNodes;
     log_app.print("Number of random samples = %d\n", num_samples);
   } else {
-    log_app.print("Start loading dataset from %s", resnet.dataset_path.c_str());
-    size_t filesize = get_file_size(resnet.dataset_path);
-    assert(filesize % (3 * 32 * 32 + 1) == 0);
-    num_samples = filesize / (3 * 32 * 32 + 1);
+    log_app.print("Start loading dataset from %s", vgg->dataset_path);
+    size_t filesize = get_file_size(vgg->dataset_path);
+    assert(filesize % 3073 == 0);
+    num_samples = filesize / 3073;
   }
   // Create full input
   {
@@ -197,9 +175,8 @@ DataLoader::DataLoader(FFModel& ff,
   }
   // Load entire dataset
   // TODO: Use index launcher instead of task launcher
-  const ResNetConfig* ptr = &resnet;
   TaskLauncher launcher(CUSTOM_CPU_TASK_ID_1,
-      TaskArgument(&ptr, sizeof(ResNetConfig*)));
+      TaskArgument(vgg, sizeof(VGGConfig)));
   // regions[0]: full_input
   launcher.add_region_requirement(
       RegionRequirement(full_input.region, WRITE_ONLY,
@@ -215,36 +192,6 @@ DataLoader::DataLoader(FFModel& ff,
   runtime->execute_task(ctx, launcher);
   reset();
   next_batch(ff);
-#ifdef DEADCODE
-  // Init input
-  {
-    IndexSpaceT<4> task_is = IndexSpaceT<4>(ff.get_or_create_task_is(4, ""));
-    ArgumentMap argmap;
-    IndexLauncher launcher(CUSTOM_GPU_TASK_ID_1, task_is,
-                           TaskArgument(NULL, 0), argmap,
-                           Predicate::TRUE_PRED, false/*must*/, 0/*mapper_id*/,
-                           FFConfig::get_hash_id(std::string("")));
-    launcher.add_region_requirement(
-        RegionRequirement(input.part, 0/*projection id*/,
-                          WRITE_ONLY, EXCLUSIVE, input.region));
-    launcher.add_field(0, FID_DATA);
-    runtime->execute_index_space(ctx, launcher);
-  }
-  // Init label
-  {
-    IndexSpaceT<2> task_is = IndexSpaceT<2>(ff.get_or_create_task_is(2, ""));
-    ArgumentMap argmap;
-    IndexLauncher launcher(CUSTOM_GPU_TASK_ID_1, task_is,
-                           TaskArgument(NULL, 0), argmap,
-                           Predicate::TRUE_PRED, false/*must*/, 0/*mapper_id*/,
-                           FFConfig::get_hash_id(std::string("")));
-    launcher.add_region_requirement(
-        RegionRequirement(label.part, 0/*projection id*/,
-                          WRITE_ONLY, EXCLUSIVE, label.region));
-    launcher.add_field(0, FID_DATA);
-    runtime->execute_index_space(ctx, launcher);
-  }
-#endif
 }
 
 __inline__
@@ -276,7 +223,7 @@ void DataLoader::load_entire_dataset(const Task *task,
   const std::vector<PhysicalRegion> &regions,
   Context ctx, Runtime* runtime)
 {
-  const ResNetConfig* resnet = *((ResNetConfig**)task->args);
+  const VGGConfig* vgg = (VGGConfig*)task->args;
   assert(regions.size() == 2);
   assert(task->regions.size() == regions.size());
   const AccessorWO<float, 4> acc_input(regions[0], FID_DATA);
@@ -291,31 +238,28 @@ void DataLoader::load_entire_dataset(const Task *task,
   int* label_ptr = acc_label.ptr(rect_label.lo);
   int num_samples = rect_label.hi[1] - rect_label.lo[1] + 1;
   assert(rect_input.hi[3] - rect_input.lo[3] + 1 == num_samples);
-  if (resnet->dataset_path.length() == 0) {
+  if (std::strlen(vgg->dataset_path) == 0) {
     log_app.print("Start generating random input samples");
-        for (size_t i = 0; i < rect_input.volume(); i++)
-      input_ptr[i] = 0.1f;
     for (size_t i = 0; i < rect_label.volume(); i++)
-      // label_ptr[i] = std::rand() % 10;
-    label_ptr[i] = 0;
+      label_ptr[i] = std::rand() % 10;
     return;
   }
   log_app.print("Start loading %d samples from %s\n",
-      num_samples, resnet->dataset_path.c_str());
+      num_samples, vgg->dataset_path);
   int height = rect_input.hi[1] - rect_input.lo[1] + 1;
   int width = rect_input.hi[0] - rect_input.lo[0] + 1;
   int origHeight = 32;
   int origWidth = 32;
   float heightScale = static_cast<float>(origHeight) / height;
   float widthScale = static_cast<float>(origWidth) / width;
-  FILE* file = fopen(resnet->dataset_path.c_str(), "rb");
-  unsigned char* buffer = (unsigned char*) malloc(3 * origHeight * origWidth + 1);
+  FILE* file = fopen(vgg->dataset_path, "rb");
+  unsigned char* buffer = (unsigned char*) malloc(3073);
   unsigned char* image = (unsigned char*) malloc(3 * height * width);
   for (off_t i = 0; i < num_samples; i++) {
-    size_t ret = fread(buffer, sizeof(unsigned char), 3 * origHeight * origWidth + 1, file);
-    assert(ret = 3 * origHeight * origWidth + 1);
+    size_t ret = fread(buffer, sizeof(unsigned char), 3073, file);
+    assert(ret = 3073);
     if ((i+1) % 1000 == 0)
-      log_app.print("Loaded %d samples", i+1);
+      log_app.print("Loaded %ld samples", i+1);
     label_ptr[i] = buffer[0];
     nearest_neigh(image, buffer + 1, height, width,
                   origHeight, origWidth, heightScale, widthScale);
@@ -325,7 +269,7 @@ void DataLoader::load_entire_dataset(const Task *task,
         input_ptr[input_offset++] = static_cast<float>(image[image_offset++]) / 255;
   }
   log_app.print("Finish loading %d samples from %s\n",
-      num_samples, resnet->dataset_path.c_str());
+      num_samples, vgg->dataset_path);
   fclose(file);
 }
 
