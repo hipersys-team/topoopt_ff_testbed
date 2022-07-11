@@ -1,3 +1,24 @@
+# FlexFlow for TopoOpt testbed
+
+This submodule contains the (slighgly modified) FlexFlow used in TopoOpt's testbed. Since the compilation and installation are the same as the vanilla FlexFlow, the original README file is retained.
+
+## Source directories used for generating TopoOpt testbed data (Figure 19)
+
+| Directory | Description |
+|-----------|-------------|
+|`examples/cpp/candle_uno`  | CANDLE UNO model |
+|`examples/cpp/ResNet`      | ResNet model     |
+|`examples/cpp/vgg16`       | VGG16 model      |
+|`examples/cpp/Transformer` | BERT model       |
+
+## Model parameters for BERT and CANDLE UNO
+
+CANDLE UNO: `./candle_uno -ll:gpu 1 -ll:fsize 30000 -ll:zsize 40000 -ll:util 1 --control-replication --enable-inplace-optimizations --nodes 12 --dense-feature-layers 4096-4096-4096-4096-4096-4096-4096-4096 --dense-layers 4096-4096-4096-4096-1 --batch-size 120`
+
+BERT: `./transformer -ll:gpu 1 -ll:fsize 30000 -ll:zsize 40000 -ll:util 4 --control-replication --enable-inplace-optimizations --nodes 12 --num-layers 6 --sequence-length 64 --hidden-size 1024 --num-heads 16 --batch-size 24`
+
+** Following is the original README file of FlexFlow. **
+
 # FlexFlow
 
 FlexFlow is a deep learning framework that accelerates distributed DNN training by automatically searching for efficient parallelization strategies. FlexFlow provides a drop-in replacement for TensorFlow Keras and PyTorch. Running existing Keras and PyTorch programs in FlexFlow only requires [a few lines of changes to the program](https://flexflow.ai/keras).
